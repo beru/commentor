@@ -1,0 +1,103 @@
+<html>
+
+<head>
+<meta charset="Shift_JIS">
+<title>Commentor</title>
+<script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shCore.js"></script>
+<script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shBrushJScript.js"></script>
+<link type="text/css" rel="stylesheet" href="syntaxhighlighter_3.0.83/styles/shCoreDefault.css"/>
+<script type="text/javascript">
+
+var lineNumberNodes;
+var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
+var heightChangeObserver = new MutationObserver(mutationObjectCallback);
+function mutationObjectCallback(mutations)
+{
+	var target = mutations[0].target;
+	var searchClassName = target.className;
+	var elements = $class(searchClassName);
+	for (var i=0; i<elements.length; ++i) {
+		if (elements[i] != target) {
+	console.log(elements[i]);
+			elements[i].style.height = "";
+		}
+	}
+}
+
+$id = function (id) {
+	return document.getElementById(id);
+}
+
+$class = function (className) {
+	return document.getElementsByClassName(className);
+}
+
+function onLineNumberNodeClick(e)
+{
+	console.log(e);
+	var eventNode = e.toElement || e.originalTarget;
+	var className = eventNode.className;
+	var newClassName = className + "_edit";
+	var exists = $class(newClassName);
+	if (exists.length) {
+		return;
+	}
+	var nodes = $class(className);
+	var config = {
+		attributes: true,
+		childList: true,
+		characterData: true,
+		subtree:true
+	};
+	for (var i=0; i<nodes.length; ++i) {
+		var node = nodes[i];
+		var nextNode = node.nextSibling;
+		var div = document.createElement("div");
+		div.className = newClassName;
+		div.innerHTML = (i == 1) ? "	" : "&nbsp;";
+		node.parentNode.insertBefore(div, nextNode);
+		if (i == 1) {
+			heightChangeObserver.observe(div, config);
+			div.contentEditable = true;
+		}
+	}
+}
+
+function init()
+{
+	var gutter = $class("gutter")[0];
+	var nodes = gutter.childNodes;
+	lineNumberNodes = new Array(nodes.length);
+	for (var i=0; i<nodes.length; ++i) {
+		lineNumberNodes[i] = nodes[i];
+	}
+	for (var i=0; i<lineNumberNodes.length; ++i) {
+		lineNumberNodes[i].onclick = onLineNumberNodeClick;
+	}
+	
+}
+
+</script>
+
+</head>
+<body>
+
+<pre class="brush: js;">
+function helloSyntaxHighlighter()
+{
+	return "hi!";
+}
+</pre>
+
+<script type="text/javascript">
+SyntaxHighlighter.all();
+setTimeout(function () {
+	init();
+}, 100)
+</script>
+
+
+
+</body>
+</html>
+
