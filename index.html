@@ -3,9 +3,8 @@
 <head>
 <meta charset="Shift_JIS">
 <title>Commentor</title>
-<script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shCore.js"></script>
-<script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shBrushJScript.js"></script>
-<link type="text/css" rel="stylesheet" href="syntaxhighlighter_3.0.83/styles/shCoreDefault.css"/>
+<link href="google-code-prettify/prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="google-code-prettify/prettify.js"></script>
 <script type="text/javascript">
 
 var lineNumberNodes;
@@ -82,15 +81,57 @@ function init()
 </head>
 <body>
 
-<pre class="brush: js;">
-function helloSyntaxHighlighter()
+<pre class="prettyprint lang-c linenums">
+
+
+#include <stdio.h>
+
+#include "lexer.h"
+
+int main(int argc, char* argv[])
 {
-	return "hi!";
+	char* pBuf = "int main(int argc, char* argv[]){ return 0; }";
+ 
+	using namespace Lexer;
+	yyin = pBuf;
+	int t;
+	do {
+		t = yylex();
+		switch (t) {
+		case Token_Error:
+			puts("Error");
+			break;
+		case Token_WhiteSpace:
+			puts("WhiteSpace");
+			break;
+		default:
+			switch (t & 0xffffff00) {
+			case Token_Keyword:
+				puts("Keyword");
+				break;
+			case Token_Identifier:
+				puts("Identifier");
+				break;
+			case Token_Constant:
+				puts("Constant");
+				break;
+			case Token_Punctuator:
+				puts("Punctuator");
+				break;
+			}
+		}
+		printf("%d\n", t);
+	}while (t);
+	
+	return 0;
 }
+
+
+
 </pre>
 
 <script type="text/javascript">
-SyntaxHighlighter.all();
+prettyPrint();
 setTimeout(function () {
 	init();
 }, 100)
