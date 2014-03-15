@@ -5,6 +5,7 @@
 <title>Commentor</title>
 <script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shCore.js"></script>
 <script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shBrushJScript.js"></script>
+<script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shBrushCpp.js"></script>
 <link type="text/css" rel="stylesheet" href="syntaxhighlighter_3.0.83/styles/shCoreDefault.css"/>
 <script type="text/javascript">
 
@@ -31,6 +32,15 @@ $class = function (className) {
 	return document.getElementsByClassName(className);
 }
 
+function readFile(path)
+{
+	var xhr = new XMLHttpRequest();
+	xhr.overrideMimeType('text/plain; charset=shift_jis');
+	xhr.open('GET', path, false);
+  	xhr.send(null);
+  	return xhr.responseText;
+}
+
 function onCommentNodeKeyDown(e)
 {
 	if (e.keyCode == 9) {	// tab
@@ -38,14 +48,16 @@ function onCommentNodeKeyDown(e)
 		var tab = "&#09;";
 		document.execCommand("InsertHTML", false, tab);
 	}else if (e.keyCode == 27) {	// esc
-		if (e.srcElement.innerText == "\n") {
-			var comments = $class("comment number" + e.srcElement.lineNumber);
-			e.srcElement.blur();
+		var elem = e.srcElement;
+		var txt = elem.innerText;
+		if (txt == "\n" || txt == "") {
+			var comments = $class("comment number" + elem.lineNumber);
 			var len = comments.length;
 			for (var i=0; i<len; ++i) {
 				comments[0].remove();
 			}
 		}
+		elem.blur();
 	}
 }
 
@@ -87,11 +99,12 @@ function addCommentNode(lineNumber, desc)
 			div.style.setProperty(
 				"padding", "6px", "important"
 			);
-			div.contentEditable = true;
+			div.contentEditable = "plaintext-only";
 			div.spellcheck = false;
 			div.focus();
 			div.blur();
 			div.onkeydown = onCommentNodeKeyDown;
+			return div;
 		}
 	}
 }
@@ -99,7 +112,8 @@ function addCommentNode(lineNumber, desc)
 function onLineNumberNodeClick(e)
 {
 	var eventNode = e.toElement || e.originalTarget;
-	addCommentNode(eventNode.lineNumber, "&#09;");
+	addCommentNode(eventNode.lineNumber, "").focus();
+	
 }
 
 function saveComments()
@@ -114,7 +128,7 @@ function saveComments()
 			"desc" : node.innerHTML
 		});
 	}
-	localStorage.setItem("comments", JSON.stringify(comments));
+	localStorage.setItem(getCurrentFileName(), JSON.stringify(comments));
 }
 
 function addCommentNodes(comments)
@@ -125,44 +139,77 @@ function addCommentNodes(comments)
 	}
 }
 
+function getCurrentFileName()
+{
+	var sel = $id("select");
+	return sel.childNodes[sel.selectedIndex].text;
+}
+
 function init()
 {
-	var gutter = $class("gutter")[0];
-	var nodes = gutter.childNodes;
-	lineNumberNodes = new Array(nodes.length);
-	for (var i=0; i<nodes.length; ++i) {
-		lineNumberNodes[i] = nodes[i];
+	var filelist = readFile("filelist.txt").split("\r\n");
+	var sel = $id("select");
+	for (var i=0; i<filelist.length; ++i) {
+		var filename = filelist[i];
+		if (filename == "") {
+			continue;
+		}
+		var opt = document.createElement("option");
+		opt.text = filename;
+		sel.appendChild(opt);
 	}
-	for (var i=0; i<lineNumberNodes.length; ++i) {
-		lineNumberNodes[i].lineNumber = i + 1;
-		lineNumberNodes[i].onclick = onLineNumberNodeClick;
+	sel.onchange = function (e) {
+		var idx = e.target.selectedIndex;
+		if (!idx) {
+			return;
+		}
+		localStorage.setItem("selectedIndex", idx);
+		location.reload();
 	}
-	var saved = localStorage.getItem("comments");
-	if (saved) {
-		saved = JSON.parse(saved);
-		addCommentNodes(saved);
+	
+	var idx = localStorage.getItem("selectedIndex");
+	if (idx) {
+		sel.selectedIndex = idx;
+		var filename = filelist[idx-1];
+		var src = readFile(filename);
+		$id("src").innerText = src;
+		setTimeout(function () {
+			console.log(filename);
+			var gutter = $class("gutter")[0];
+			var nodes = gutter.childNodes;
+			lineNumberNodes = new Array(nodes.length);
+			for (var i=0; i<nodes.length; ++i) {
+				lineNumberNodes[i] = nodes[i];
+			}
+			for (var i=0; i<lineNumberNodes.length; ++i) {
+				lineNumberNodes[i].lineNumber = i + 1;
+				lineNumberNodes[i].onclick = onLineNumberNodeClick;
+			}
+			var saved = localStorage.getItem(filename);
+			if (saved) {
+				saved = JSON.parse(saved);
+				addCommentNodes(saved);
+			}
+		}, 100);
 	}
 }
+
+window.onload = init;
 
 </script>
 
 </head>
 <body>
 
+<select id="select"><option>&nbsp;</option></select>
 <button onclick="saveComments();">save</button>
-<pre class="brush: js; toolbar: false;">
-function helloSyntaxHighlighter()
-{
-	return "hi!";
-}
-</pre>
+<button onclick="saveComments();">save</button>
+<br>
 
-<script type="text/javascript">
-SyntaxHighlighter.all();
-setTimeout(function () {
-	init();
-}, 0)
-</script>
+
+<pre id="src" class="brush: c; toolbar: false;"></pre>
+
+<script type="text/javascript">SyntaxHighlighter.all();</script>
 
 </body>
 </html>
