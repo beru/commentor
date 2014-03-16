@@ -1,28 +1,16 @@
+<!DOCTYPE html>
 <html>
 
 <head>
 <meta charset="Shift_JIS">
 <title>Commentor</title>
-<script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shCore.js"></script>
-<script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shBrushJScript.js"></script>
-<script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shBrushCpp.js"></script>
-<link type="text/css" rel="stylesheet" href="syntaxhighlighter_3.0.83/styles/shCoreDefault.css"/>
+<script type="text/javascript" src="lib/rainbow/rainbow.js"></script>
+<script type="text/javascript" src="lib/rainbow/generic.js"></script>
+<script type="text/javascript" src="lib/rainbow/c.js"></script>
+<script type="text/javascript" src="lib/rainbow.linenumbers/rainbow.linenumbers.js"></script>
+<link rel="stylesheet" type="text/css" href="lib/rainbow/obsidian.css" media="screen" />
+<link rel="stylesheet" type="text/css" href="lib/rainbow.linenumbers/theme.css" media="screen" />
 <script type="text/javascript">
-
-var lineNumberNodes;
-var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
-var heightChangeObserver = new MutationObserver(mutationObjectCallback);
-function mutationObjectCallback(mutations)
-{
-	var target = mutations[0].target;
-	var searchClassName = target.className;
-	var elements = $class(searchClassName);
-	for (var i=0; i<elements.length; ++i) {
-		if (elements[i] != target) {
-			elements[i].style.setProperty("height", target.clientHeight + "px", "important");
-		}
-	}
-}
 
 $id = function (id) {
 	return document.getElementById(id);
@@ -51,168 +39,140 @@ function onCommentNodeKeyDown(e)
 		var elem = e.srcElement;
 		var txt = elem.innerText;
 		if (txt == "\n" || txt == "") {
-			var comments = $class("comment number" + elem.lineNumber);
-			var len = comments.length;
-			for (var i=0; i<len; ++i) {
-				comments[0].remove();
-			}
-		}
-		elem.blur();
-	}
-}
-
-function addCommentNode(lineNumber, desc)
-{
-	var newClassName = "comment number" + lineNumber;
-	var exists = $class(newClassName);
-	if (exists.length) {
-		return;
-	}
-	var nodes = $class(lineNumberNodes[lineNumber-1].className);
-	console.log("line number" + lineNumber);
-	var config = {
-		attributes: true,
-		childList: true,
-		characterData: true,
-		subtree:true
-	};
-	for (var i=0; i<nodes.length; ++i) {
-		var node = nodes[i];
-		var nextNode = node.nextSibling;
-		var div = document.createElement("div");
-		div.className = newClassName;
-		div.innerHTML = (i == 1) ? desc : "&nbsp;";
-		div.lineNumber = lineNumber;
-		console.log(node);
-		node.appendChild(div);
-		if (i == 1) {
-			heightChangeObserver.observe(div, config);
-			div.style.setProperty(
-				"white-space", "pre"
-			);
-			div.style.setProperty(
-				"color", "#000	", "important"
-			);
-			div.style.setProperty(
-				"background-color", "#eee", "important"
-			);
-			div.style.setProperty(
-				"padding", "6px", "important"
-			);
-			div.style.setProperty(
-				"tab-size", "4"
-			);
-			div.contentEditable = "plaintext-only";
-			div.spellcheck = false;
-			div.focus();
-			div.blur();
-			div.onkeydown = onCommentNodeKeyDown;
-			return div;
+			elem.remove();
+		}else {
+			elem.blur();
 		}
 	}
 }
 
-function onLineNumberNodeClick(e)
+function addCommentNode(lineNumberNode, desc)
 {
-	var eventNode = e.toElement || e.originalTarget;
-	addCommentNode(eventNode.lineNumber, "").focus();
-	
-}
-
-function saveComments()
-{
-	var comments = [];
-	
-	var nodes = $class("code")[0].querySelectorAll("div.comment");
-	for (var i=0; i<nodes.length; ++i) {
-		var node = nodes[i];
-		comments.push({
-			"line" : node.lineNumber,
-			"desc" : node.innerHTML
-		});
+	var nextNode = lineNumberNode.nextSibling;
+	var div = document.createElement("div");
+	div.innerHTML = desc;
+	nextNode.appendChild(div, nextNode);
+	with (div.style) {
+		setProperty(
+			"color", "#ee3"
+		);
+		setProperty(
+			"background-color", "#024"
+		);
+		setProperty(
+			"white-space", "pre"
+		);
+		setProperty(
+			"tab-size", "4"
+		);
 	}
-	localStorage.setItem(getCurrentFileName(), JSON.stringify(comments));
+	div.className = "code-comment";
+	div.contentEditable = "plaintext-only";
+	div.spellcheck = false;
+	if (desc == "") {
+		div.focus();
+		div.blur();
+	}
+	div.onkeydown = onCommentNodeKeyDown;
+	return div;
 }
 
 function addCommentNodes(comments)
 {
 	for (var i=0; i<comments.length; ++i) {
 		var c = comments[i];
-		addCommentNode(c.line, c.desc);
+		addCommentNode(lineNumberNodes[Number(c.line) - 1], c.desc);
 	}
 }
 
-function getCurrentFileName()
+function onLineNumberNodeClick(e)
 {
-	var sel = $id("select");
-	return sel.childNodes[sel.selectedIndex].text;
+	var eventNode = e.toElement || e.originalTarget;
+	
+	if (eventNode.nextSibling.lastChild.className == "code-comment") {
+		eventNode.nextSibling.lastChild.focus();
+	}else {
+		addCommentNode(eventNode, "").focus();
+	}
 }
 
-function init()
+function saveComments()
 {
-	var filelist = readFile("filelist.txt").split("\r\n");
+	var comments = [];
+	
+	var nodes = $class("rainbow")[0].querySelectorAll("div.code-comment");
+	for (var i=0; i<nodes.length; ++i) {
+		var node = nodes[i];
+		comments.push({
+			"line" : Number(node.parentNode.previousSibling.dataset.lineNumber),
+			"desc" : node.innerText
+		});
+	}
+	localStorage.setItem(fileName, JSON.stringify(comments));
+}
+
+var lineNumberNodes;
+var fileName;
+var filelist = readFile("filelist.txt").split("\r\n");
+var selIdx = localStorage.getItem("selectedIndex");
+if (selIdx) {
+	fileName = filelist[selIdx - 1];
+	output();
+}
+
+function output()
+{
+	var html = "";
+	html += '<select id="select"><option>&nbsp;</option></select>';
+	html += '<button onclick="saveComments();">save</button>';
+	html += '<br>';
+	html += '<pre id="src" style="tab-size: 4;">';
+	html += '<code data-language="c">';
+	if (fileName) {
+		html += readFile(fileName);
+	}
+	html += '</code>';
+	html += '</pre>';
+	document.write(html);
+}
+
+document.addEventListener('DOMContentLoaded', function () {
 	var sel = $id("select");
+	sel.onchange = function (e) {
+		var selIdx = e.target.selectedIndex;
+		if (!selIdx) {
+			return;
+		}
+		localStorage.setItem("selectedIndex", selIdx);
+		location.reload();
+	}
 	for (var i=0; i<filelist.length; ++i) {
-		var filename = filelist[i];
-		if (filename == "") {
+		var fname = filelist[i];
+		if (fname == "") {
 			continue;
 		}
 		var opt = document.createElement("option");
-		opt.text = filename;
+		opt.text = fname;
 		sel.appendChild(opt);
 	}
-	sel.onchange = function (e) {
-		var idx = e.target.selectedIndex;
-		if (!idx) {
-			return;
-		}
-		localStorage.setItem("selectedIndex", idx);
-		location.reload();
+	sel.selectedIndex = selIdx;
+	var saved = localStorage.getItem(fileName);
+	var nodes = $id("src").firstChild.firstChild.childNodes;
+	lineNumberNodes = new Array(nodes.length);
+	for (var i=0; i<nodes.length; ++i) {
+		lineNumberNodes[i] = nodes[i].firstChild;
+		lineNumberNodes[i].onclick = onLineNumberNodeClick;
 	}
-	
-	var idx = localStorage.getItem("selectedIndex");
-	if (idx) {
-		sel.selectedIndex = idx;
-		var filename = filelist[idx-1];
-		var src = readFile(filename);
-		$id("src").innerText = src;
-		setTimeout(function () {
-			console.log(filename);
-			var gutter = $class("gutter")[0];
-			var nodes = gutter.childNodes;
-			lineNumberNodes = new Array(nodes.length);
-			for (var i=0; i<nodes.length; ++i) {
-				lineNumberNodes[i] = nodes[i];
-			}
-			for (var i=0; i<lineNumberNodes.length; ++i) {
-				lineNumberNodes[i].lineNumber = i + 1;
-				lineNumberNodes[i].onclick = onLineNumberNodeClick;
-			}
-			var saved = localStorage.getItem(filename);
-			if (saved) {
-				saved = JSON.parse(saved);
-				addCommentNodes(saved);
-			}
-		}, 100);
+	if (saved) {
+		saved = JSON.parse(saved);
+		addCommentNodes(saved);
 	}
-}
-
-window.onload = init;
+});
 
 </script>
 
 </head>
-<body>
-
-<select id="select"><option>&nbsp;</option></select>
-<button onclick="saveComments();">save</button>
-<button onclick="saveComments();">save</button>
-<br>
-
-
-<pre id="src" class="brush: c; toolbar: false;" style="tab-size: 4;"></pre>
-
-<script type="text/javascript">SyntaxHighlighter.all();</script>
+<body style="background-color:#000">
 
 </body>
 </html>
