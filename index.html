@@ -20,15 +20,6 @@ $class = function (className) {
 	return document.getElementsByClassName(className);
 }
 
-function readFile(path)
-{
-	var xhr = new XMLHttpRequest();
-	xhr.overrideMimeType('text/plain; charset=shift_jis');
-	xhr.open('GET', path, false);
-  	xhr.send(null);
-  	return xhr.responseText;
-}
-
 function onCommentNodeKeyDown(e)
 {
 	if (e.keyCode == 9) {	// tab
@@ -36,7 +27,7 @@ function onCommentNodeKeyDown(e)
 		var tab = "&#09;";
 		document.execCommand("InsertHTML", false, tab);
 	}else if (e.keyCode == 27) {	// esc
-		var elem = e.srcElement;
+		var elem = e.srcElement || e.target;
 		var txt = elem.innerText;
 		if (txt == "\n" || txt == "") {
 			elem.remove();
@@ -44,6 +35,17 @@ function onCommentNodeKeyDown(e)
 			elem.blur();
 		}
 	}
+}
+
+function supportsPlainText()
+{
+    var d = document.createElement("div");
+    try {
+        d.contentEditable="PLAINtext-onLY";
+    } catch(e) {
+        return false;
+    }
+    return d.contentEditable=="plaintext-only";
 }
 
 function addCommentNode(lineNumberNode, desc)
@@ -60,6 +62,9 @@ function addCommentNode(lineNumberNode, desc)
 			"background-color", "#024"
 		);
 		setProperty(
+			"font-weight", "bold"
+		);
+		setProperty(
 			"white-space", "pre"
 		);
 		setProperty(
@@ -67,7 +72,11 @@ function addCommentNode(lineNumberNode, desc)
 		);
 	}
 	div.className = "code-comment";
-	div.contentEditable = "plaintext-only";
+	if (supportsPlainText()) {
+		div.contentEditable = "plaintext-only";
+	}else {
+		div.contentEditable = true;
+	}
 	div.spellcheck = false;
 	if (desc == "") {
 		div.focus();
@@ -99,13 +108,12 @@ function onLineNumberNodeClick(e)
 function saveComments()
 {
 	var comments = [];
-	
 	var nodes = $class("rainbow")[0].querySelectorAll("div.code-comment");
 	for (var i=0; i<nodes.length; ++i) {
 		var node = nodes[i];
 		comments.push({
 			"line" : Number(node.parentNode.previousSibling.dataset.lineNumber),
-			"desc" : node.innerText
+			"desc" : node.innerText || node.textContent
 		});
 	}
 	localStorage.setItem(fileName, JSON.stringify(comments));
@@ -113,49 +121,26 @@ function saveComments()
 
 var lineNumberNodes;
 var fileName;
-var filelist = readFile("filelist.txt").split("\r\n");
-var selIdx = localStorage.getItem("selectedIndex");
-if (selIdx) {
-	fileName = filelist[selIdx - 1];
-	output();
-}
 
-function output()
+function output(src)
 {
 	var html = "";
-	html += '<select id="select"><option>&nbsp;</option></select>';
 	html += '<button onclick="saveComments();">save</button>';
 	html += '<br>';
 	html += '<pre id="src" style="tab-size: 4;">';
 	html += '<code data-language="c">';
 	if (fileName) {
-		html += readFile(fileName);
+		html += src;
 	}
 	html += '</code>';
 	html += '</pre>';
-	document.write(html);
+	$id("dropbox").innerHTML = html;
+	Rainbow.color();
+	setup();
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-	var sel = $id("select");
-	sel.onchange = function (e) {
-		var selIdx = e.target.selectedIndex;
-		if (!selIdx) {
-			return;
-		}
-		localStorage.setItem("selectedIndex", selIdx);
-		location.reload();
-	}
-	for (var i=0; i<filelist.length; ++i) {
-		var fname = filelist[i];
-		if (fname == "") {
-			continue;
-		}
-		var opt = document.createElement("option");
-		opt.text = fname;
-		sel.appendChild(opt);
-	}
-	sel.selectedIndex = selIdx;
+function setup()
+{
 	var saved = localStorage.getItem(fileName);
 	var nodes = $id("src").firstChild.firstChild.childNodes;
 	lineNumberNodes = new Array(nodes.length);
@@ -167,12 +152,44 @@ document.addEventListener('DOMContentLoaded', function () {
 		saved = JSON.parse(saved);
 		addCommentNodes(saved);
 	}
-});
+}
+
+function cancelEvent(e)
+{
+	e.preventDefault();
+	e.stopPropagation();
+	return false;
+}
+
+function drop(e) {
+	e.stopPropagation();
+	e.preventDefault();
+
+	var dt = e.dataTransfer;
+	var files = dt.files;
+	fileName = files[0].name;
+	document.title = fileName;
+    var reader = new FileReader();
+    reader.onloadend = function(evt) {
+        output( evt.target.result );
+    };
+    reader.readAsText(files[0], "sjis");
+}
+
+window.onload = function() {
+	var dropbox;
+	dropbox = document.getElementById("dropbox");
+	dropbox.addEventListener("dragenter", cancelEvent, false);
+	dropbox.addEventListener("dragover", cancelEvent, false);
+	dropbox.addEventListener("drop", drop, false);
+}
 
 </script>
 
 </head>
-<body style="background-color:#000">
+<body style="background-color:black; padding:0px; margin:0px;">
+
+<div id="dropbox" style="color:white; position:absolute; width:100%; height:100%;">ここにドロップしたファイルを読み込みます。</div>
 
 </body>
 </html>
