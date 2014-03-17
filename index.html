@@ -129,14 +129,13 @@ function retrieveComments()
 	return comments;
 }
 
-function download(filename, content, contentType)
-{
-    if (!contentType) contentType = 'application/octet-stream';
-	var a = document.createElement('a');
-	var blob = new Blob([content], {'type':contentType});
-	a.href = window.URL.createObjectURL(blob);
-	a.download = filename;
-	a.click();
+function download(filename, text) {
+    var pom = document.createElement('a');
+    pom.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    pom.setAttribute('download', filename);
+    document.body.appendChild(pom);
+    pom.click();
+    pom.remove();
 }
 
 function saveCommentsToFile()
