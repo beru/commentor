@@ -4,8 +4,8 @@
 <head>
 <meta charset="Shift_JIS">
 <title>Commentor</title>
-<link href="google-code-prettify/src/prettify.css" type="text/css" rel="stylesheet" />
-<script type="text/javascript" src="google-code-prettify/src/prettify.js"></script>
+<link href="prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="prettify.js"></script>
 <script type="text/javascript">
 
 $id = function (id) {
@@ -152,12 +152,10 @@ var fileName;
 function output(src)
 {
 	var html = "";
-	html += '<pre id="src" class="prettyprint linenums:1" style="tab-size: 4;">';
-	html += '<code class="language-c">';
+	html += '<pre id="src" class="prettyprint lang-cc linenums:1" style="tab-size: 4; overflow: auto; padding-left:10px;">';
 	if (fileName) {
 		html += src;
 	}
-	html += '</code>';
 	html += '</pre>';
 	$id("dropbox").innerHTML = html;
 	prettyPrint();
@@ -182,6 +180,15 @@ function cancelEvent(e)
 	return false;
 }
 
+function htmlEscape(str) {
+    return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+}
+
 function drop(e) {
 	e.stopPropagation();
 	e.preventDefault();
@@ -192,7 +199,7 @@ function drop(e) {
 	document.title = fileName;
     var reader = new FileReader();
     reader.onloadend = function(evt) {
-        output( evt.target.result );
+        output( htmlEscape(evt.target.result) );
     };
     reader.readAsText(files[0], "sjis");
 }
