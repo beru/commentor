@@ -4,12 +4,8 @@
 <head>
 <meta charset="Shift_JIS">
 <title>Commentor</title>
-<script type="text/javascript" src="lib/rainbow/rainbow.js"></script>
-<script type="text/javascript" src="lib/rainbow/generic.js"></script>
-<script type="text/javascript" src="lib/rainbow/c.js"></script>
-<script type="text/javascript" src="lib/rainbow.linenumbers/rainbow.linenumbers.js"></script>
-<link rel="stylesheet" type="text/css" href="lib/rainbow/obsidian.css" media="screen" />
-<link rel="stylesheet" type="text/css" href="lib/rainbow.linenumbers/theme.css" media="screen" />
+<link href="google-code-prettify/src/prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="google-code-prettify/src/prettify.js"></script>
 <script type="text/javascript">
 
 $id = function (id) {
@@ -48,21 +44,25 @@ function supportsPlainText()
     return d.contentEditable=="plaintext-only";
 }
 
-function addCommentNode(lineNumberNode, desc)
+function addCommentNode(lineNode, desc)
 {
-	var nextNode = lineNumberNode.nextSibling;
 	var div = document.createElement("div");
 	div.innerHTML = desc;
-	nextNode.appendChild(div, nextNode);
+	lineNode.appendChild(div);
 	with (div.style) {
 		setProperty(
-			"color", "#ee3"
+			"color", "#000"
 		);
 		setProperty(
-			"background-color", "#024"
+			"background-color", "#cec"
 		);
+/*
 		setProperty(
 			"font-weight", "bold"
+		);
+*/
+		setProperty(
+			"padding", "5px"
 		);
 		setProperty(
 			"white-space", "pre"
@@ -71,6 +71,7 @@ function addCommentNode(lineNumberNode, desc)
 			"tab-size", "4"
 		);
 	}
+	div.dataset.lineNumber = lineNode.dataset.lineNumber;
 	div.className = "code-comment";
 	if (supportsPlainText()) {
 		div.contentEditable = "plaintext-only";
@@ -90,33 +91,59 @@ function addCommentNodes(comments)
 {
 	for (var i=0; i<comments.length; ++i) {
 		var c = comments[i];
-		addCommentNode(lineNumberNodes[Number(c.line) - 1], c.desc);
+		var line = c.line;
+		if (line) {
+			line = Number(line);
+			addCommentNode(lineNumberNodes[line - 1], c.desc);
+		}
 	}
 }
 
 function onLineNumberNodeClick(e)
 {
 	var eventNode = e.toElement || e.originalTarget;
-	
-	if (eventNode.nextSibling.lastChild.className == "code-comment") {
-		eventNode.nextSibling.lastChild.focus();
+	var node = eventNode;
+	console.log(node.nodeName);
+	while (node.nodeName != "LI") {
+		node = node.parentNode;
+	}
+	if (node.lastChild.className == "code-comment") {
+		node.lastChild.focus();
 	}else {
-		addCommentNode(eventNode, "").focus();
+		addCommentNode(node, "").focus();
 	}
 }
 
-function saveComments()
+function retrieveComments()
 {
 	var comments = [];
-	var nodes = $class("rainbow")[0].querySelectorAll("div.code-comment");
+	var nodes = $class("code-comment");
+	console.log(nodes);
 	for (var i=0; i<nodes.length; ++i) {
 		var node = nodes[i];
 		comments.push({
-			"line" : Number(node.parentNode.previousSibling.dataset.lineNumber),
+			"line" : Number(node.dataset.lineNumber),
 			"desc" : node.innerText || node.textContent
 		});
 	}
-	localStorage.setItem(fileName, JSON.stringify(comments));
+	return comments;
+}
+
+function download(filename, content, contentType)
+{
+    if (!contentType) contentType = 'application/octet-stream';
+	var a = document.createElement('a');
+	var blob = new Blob([content], {'type':contentType});
+	a.href = window.URL.createObjectURL(blob);
+	a.download = filename;
+	a.click();
+}
+
+function saveCommentsToFile()
+{
+	var json = JSON.stringify(retrieveComments(), null, '\t')
+//	localStorage.setItem(fileName, JSON.stringify(comments, null, '\t'));
+	download(fileName + ".json", json);
 }
 
 var lineNumberNodes;
@@ -125,32 +152,26 @@ var fileName;
 function output(src)
 {
 	var html = "";
-	html += '<button onclick="saveComments();">save</button>';
-	html += '<br>';
-	html += '<pre id="src" style="tab-size: 4;">';
-	html += '<code data-language="c">';
+	html += '<pre id="src" class="prettyprint linenums:1" style="tab-size: 4;">';
+	html += '<code class="language-c">';
 	if (fileName) {
 		html += src;
 	}
 	html += '</code>';
 	html += '</pre>';
 	$id("dropbox").innerHTML = html;
-	Rainbow.color();
+	prettyPrint();
 	setup();
 }
 
 function setup()
 {
-	var saved = localStorage.getItem(fileName);
-	var nodes = $id("src").firstChild.firstChild.childNodes;
+	var nodes = $id("src").firstChild.childNodes;
 	lineNumberNodes = new Array(nodes.length);
 	for (var i=0; i<nodes.length; ++i) {
-		lineNumberNodes[i] = nodes[i].firstChild;
+		lineNumberNodes[i] = nodes[i];
 		lineNumberNodes[i].onclick = onLineNumberNodeClick;
-	}
-	if (saved) {
-		saved = JSON.parse(saved);
-		addCommentNodes(saved);
+		lineNumberNodes[i].dataset.lineNumber = i + 1;
 	}
 }
 
@@ -176,9 +197,23 @@ function drop(e) {
     reader.readAsText(files[0], "sjis");
 }
 
+function onFileSelectChange(files)
+{
+    var reader = new FileReader();
+    reader.onloadend = function(evt) {
+        var comments = evt.target.result;
+        try {
+			comments = JSON.parse(comments);
+			addCommentNodes(comments);
+		}catch (e) {
+			alert(e);
+		}
+	};
+    reader.readAsText(files[0] /*, "sjis"*/);
+}
+
 window.onload = function() {
-	var dropbox;
-	dropbox = document.getElementById("dropbox");
+	var dropbox = $id("dropbox");	// this is not online storage
 	dropbox.addEventListener("dragenter", cancelEvent, false);
 	dropbox.addEventListener("dragover", cancelEvent, false);
 	dropbox.addEventListener("drop", drop, false);
@@ -187,9 +222,13 @@ window.onload = function() {
 </script>
 
 </head>
-<body style="background-color:black; padding:0px; margin:0px;">
+<body style="padding:0px; margin:0px;">
 
-<div id="dropbox" style="color:white; position:absolute; width:100%; height:100%;">ここにドロップしたファイルを読み込みます。</div>
+<input type="file" id="file" onchange="onFileSelectChange(this.files);" />
+<button onclick="saveCommentsToFile();">save comments to file</button>
+<br>
+
+<div id="dropbox" style="position:absolute; width:100%; height:100%;">ここにドロップしたファイルを読み込みます。</div>
 
 </body>
 </html>
